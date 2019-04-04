@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/edittext_height"
+    android:paddingLeft="@dimen/main_padding_double"
+    android:paddingRight="@dimen/main_padding_double"
+    android:layout_marginTop="@dimen/main_padding_half"
+    android:layout_marginBottom="@dimen/main_padding_half"
+    android:gravity="center_vertical"
+    android:background="@drawable/order_history_item_background"
+    android:orientation="horizontal">
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/green"
+        android:textSize="@dimen/history_device_text"
+        android:text="@string/device_name"/>
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"/>
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="@dimen/main_padding"
+        android:textColor="@android:color/black"
+        android:textSize="@dimen/small_medium_text"
+        android:layout_centerInParent="true"
+        android:text="No date"/>
+    <TextView
+        android:id="@+id/go_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_circle"
+        android:textSize="@dimen/small_medium_text"
+        android:text="@string/go"/>
+</LinearLayout>

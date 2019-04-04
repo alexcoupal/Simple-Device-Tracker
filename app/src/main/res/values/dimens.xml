@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="main_padding_half">5dp</dimen>
+    <dimen name="main_padding">10dp</dimen>
+    <dimen name="main_padding_double">20dp</dimen>
+
+    <dimen name="small_text">9sp</dimen>
+    <dimen name="small_medium_text">14sp</dimen>
+    <dimen name="medium_text">20sp</dimen>
+    <dimen name="history_device_text">16sp</dimen>
+
+    <dimen name="icon_medium">24sp</dimen>
+
+    <dimen name="round_button_padding">5dp</dimen>
+    <dimen name="round_button_size">33dp</dimen>
+
+    <dimen name="button_round_corner_padding">10dp</dimen>
+    <dimen name="button_round_corner_radius">25dp</dimen>
+    <dimen name="button_round_corner_padding_side">25dp</dimen>
+
+    <dimen name="edittext_height">46dp</dimen>
+    <dimen name="edittext_padding_left">15dp</dimen>
+    <dimen name="edittext_corner_radius">25dp</dimen>
+
+    <dimen name="logo_size">50dp</dimen>
+    <dimen name="two_line_height">55dp</dimen>
+
+</resources>

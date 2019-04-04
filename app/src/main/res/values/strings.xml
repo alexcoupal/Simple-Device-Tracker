@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">Simple Device Tracker</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="name_here">Name here</string>
+    <string name="edit">Edit</string>
+    <string name="track_a_device">Track a Device</string>
+    <string name="track">Track</string>
+    <string name="copy">Copy</string>
+    <string name="address">Address</string>
+    <string name="see_map">See Map</string>
+    <string name="tracked_devices">Tracked Devices</string>
+    <string name="go">Go</string>
+    <string name="device_name">Device Name</string>
+    <string name="title">TrackMe</string>
+    <string name="my_device_name">My Device Name</string>
+    <string name="enter_new_device_name">Enter New Device Name</string>
+    <string name="cancel">Cancel</string>
+    <string name="accept">Accept</string>
+    <string name="ok">Ok</string>
+    <string name="no_connection_message">You need internet access to use this app.</string>
+    <string name="device_name_not_exist">This device name does not exist.</string>
+    <string name="no_gps_error">Your GPS seems to be disabled, do you want to enable it?</string>
+</resources>
