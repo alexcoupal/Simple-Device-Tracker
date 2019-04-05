@@ -27,10 +27,7 @@ import com.v2d.trackme.viewmodels.MainViewModel
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.tasks.OnCompleteListener
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.*
 import com.google.firebase.iid.FirebaseInstanceId
 import com.v2d.trackme.adapters.MyHistoryAdapter
 import com.v2d.trackme.databinding.ActivityMainBinding
@@ -56,10 +53,10 @@ class MainActivity : AppCompatActivity() {
     private var dialog: AlertDialog? = null
 
     private lateinit var viewModel: MainViewModel
-
     private lateinit var binding: ActivityMainBinding
-
     private lateinit var adapter: MyHistoryAdapter
+    private var locationRef: DatabaseReference? = null
+    private var locationRefListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,10 +100,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveDeviceName(name : String){
-        //Save to firebase database
+        //Save to firebase locationRef
         val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
-        database.child(android_id!!).child(Constants.DB_DEVICENAME).setValue(name)
-        database.child(android_id!!).child(Constants.DB_TOKEN).setValue(fcmToken)
+        database.child(name).child(Constants.DB_DEVICE_UID).setValue(android_id!!)
+        database.child(name).child(Constants.DB_TOKEN).setValue(fcmToken)
 
         //Save to local pref.
         val prefs = getSharedPreferences(Constants.PREFS_FILENAME, 0)
@@ -227,32 +224,68 @@ class MainActivity : AppCompatActivity() {
     }
     fun findTokenByDeviceName(deviceName: String)
     {
-        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
-
+        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF).child(deviceName)
         val postListener = object : ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
-                // Get Post object and use the values to update the UI
-                if(dataSnapshot.hasChildren()) {
-                    for (data: DataSnapshot in dataSnapshot.children) {
-                        if (data.child(Constants.DB_DEVICENAME).value.toString().equals(deviceName)) {
-                            val token = data.child(Constants.DB_TOKEN).value.toString()
-                            sendRequestToTrackedDevice(token)
-                            return
-                        }
-                    }
+                if (dataSnapshot.exists()) {
+                    val token = dataSnapshot.child(Constants.DB_TOKEN).value.toString()
+                    listenToDeviceLocationChange(deviceName)
+                    sendRequestToTrackedDevice(token)
+                    return
                 }
 
                 setBusyDialog(false)
                 showAlert(getString(R.string.device_name_not_exist))
             }
-
             override fun onCancelled(databaseError: DatabaseError) {
                 // Getting Post failed, log a message
                 Log.w(Constants.TAG, "findTokenByDeviceName:onCancelled", databaseError.toException())
+                setBusyDialog(false)
             }
         }
 
         database.addListenerForSingleValueEvent(postListener)
+    }
+
+    private fun listenToDeviceLocationChange(deviceName: String) {
+        var i = 0
+        if(locationRef == null)
+            locationRef = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF).child(deviceName).child(Constants.LOCATION)
+
+        locationRefListener = object : ValueEventListener {
+            override fun onDataChange(data: DataSnapshot) {
+                //Hack to avoid getting the current data
+                if (i == 0) {
+                    i++
+                    return
+                }
+
+                if (data.exists()) {
+                    longitude = data.child(Constants.DB_LONGITUDE).value as Double
+                    latitude = data.child(Constants.DB_LATITUDE).value as Double
+                    address = data.child(Constants.DB_ADDRESS).value as String
+
+                    val date = data.child(Constants.DB_DATE).value as String
+                    Log.d(Constants.TAG, "date = " + date)
+
+                    binding.address.text = address
+
+                    viewModel.addToHistory(deviceName)
+
+                    //Stop listening
+                    locationRef?.removeEventListener(this)
+
+                    setBusyDialog(false)
+                }
+            }
+
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.w(Constants.TAG, "listenToDeviceLocationChange:onCancelled", databaseError.toException())
+                setBusyDialog(false)
+            }
+
+        }
+        locationRef?.addValueEventListener(locationRefListener!!)
     }
 
     private fun sendRequestToTrackedDevice(token: String) {
@@ -323,6 +356,7 @@ class MainActivity : AppCompatActivity() {
             dialog = builder.create()
             builder.setCancelable(false)
             customView.buttonCancel.setOnClickListener{
+                locationRef?.removeEventListener(locationRefListener!!)
                 dialog?.dismiss()
             }
         }

@@ -93,21 +93,16 @@ class DeviceNameDialogFragment : DialogFragment() {
     }
     private fun checkIsAvailable(newName:String) {
 
-        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
-
+        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF).child(newName)
         val postListener = object : ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
-                // Get Post object and use the values to update the UI
-                if(dataSnapshot.hasChildren()) {
-                    for (data: DataSnapshot in dataSnapshot.children) {
-                        if (data.child(Constants.DB_DEVICENAME).value.toString().equals(newName)) {
-                            //It Already exist. Can't use that name
-                            textViewContent.setError("This name already exist.")
-                            return
-                        }
-                    }
+                if(dataSnapshot.exists()) {
+                    //It Already exist. Can't use that name
+                    textViewContent.setError("This name already exist.")
+                    return
                 }
 
+                FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF).child(currentName).setValue(null)
                 //Doesn't exist
                 //Update UI
                 model.myDeviceName.value = newName

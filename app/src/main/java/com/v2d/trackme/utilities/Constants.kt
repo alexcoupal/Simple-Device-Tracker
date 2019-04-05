@@ -21,7 +21,13 @@ class Constants {
 
         val DATABASE_REF: String = "deviceList"
         val DB_DEVICENAME = "deviceName"
+        val DB_DEVICE_UID = "deviceUID"
+        val DB_LOCATION = "location"
+        val DB_LONGITUDE = "longitude"
+        val DB_LATITUDE = "latitude"
+        val DB_ADDRESS = "address"
         val DB_TOKEN = "token"
         val FROM_DEVICE_NAME = "fromDeviceName"
+        val DB_DATE = "date"
     }
 }

@@ -16,7 +16,10 @@ import com.google.android.gms.location.LocationServices
 import java.io.IOException
 import java.util.*
 import com.google.android.gms.location.LocationRequest
+import com.google.firebase.database.FirebaseDatabase
 import com.v2d.trackme.utilities.Constants
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
 
 
 class MFirebaseMessagingService : FirebaseMessagingService() {
@@ -37,34 +40,18 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
         if (remoteMessage.data.size > 0) {
             Log.d(Constants.TAG, "Message data payload: " + remoteMessage.data)
             var payload = remoteMessage.data
-            var type = payload.get(Constants.TYPE)
 
-            if(type.equals(Constants.TRACKME))
-            {
-                val fromToken = payload[Constants.FROMTOKEN]
-                if (fromToken != null) {
-                    requestLocationUpdate(fromToken)
-                }
+            val fromToken = payload[Constants.FROMTOKEN]
+            if (fromToken != null) {
+                requestLocationUpdate()
             }
-            else {
-                val longitude = payload.get(Constants.LONGITUDE)!!.toDouble()
-                val latitude = payload.get(Constants.LATITUDE)!!.toDouble()
-                val address = payload.get(Constants.ADDRESS)
-                val fromDeviceName = payload.get(Constants.FROM_DEVICE_NAME)
 
-                val intent = Intent("android.intent.action.MAIN")
-                intent.putExtra(Constants.LONGITUDE, longitude)
-                intent.putExtra(Constants.LATITUDE, latitude)
-                intent.putExtra(Constants.ADDRESS, address)
-                intent.putExtra(Constants.FROM_DEVICE_NAME, fromDeviceName)
-                sendBroadcast(intent)
-            }
         }
 
     }
 
     @SuppressLint("MissingPermission")
-    private fun requestLocationUpdate(fromToken: String) {
+    private fun requestLocationUpdate() {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         val locationRequest = LocationRequest()
         locationRequest.interval = 1000
@@ -81,13 +68,18 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
                         val myDeviceName = prefs!!.getString(Constants.MY_DEVICE_NAME, null) ?: return
 
                         val address = getAddress(location)
-                        val dataJson = JSONObject()
-                        dataJson.put(Constants.TYPE, Constants.LOCATION)
-                        dataJson.put(Constants.LONGITUDE, location!!.getLongitude())
-                        dataJson.put(Constants.LATITUDE, location!!.getLatitude())
-                        dataJson.put(Constants.ADDRESS, address)
-                        dataJson.put(Constants.FROM_DEVICE_NAME, myDeviceName)
-                        FCMService.instance.send(fromToken, dataJson)
+
+                        //Save to firebase database
+                        val sdf = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
+                        val currentDate = sdf.format(Date())
+
+                        var map = HashMap<String, Any?>()
+                        map[Constants.DB_ADDRESS] = address
+                        map[Constants.DB_LONGITUDE] = location!!.longitude
+                        map[Constants.DB_LATITUDE] = location!!.latitude
+                        map[Constants.DB_DATE] = currentDate
+                        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF).child(myDeviceName).child(Constants.DB_LOCATION)
+                        database.updateChildren(map)
 
                         fusedLocationClient.removeLocationUpdates(this)
                     }
