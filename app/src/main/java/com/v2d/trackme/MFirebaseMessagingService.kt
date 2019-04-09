@@ -17,6 +17,7 @@ import java.io.IOException
 import java.util.*
 import com.google.android.gms.location.LocationRequest
 import com.google.firebase.database.FirebaseDatabase
+import com.v2d.trackme.data.MyPreferences
 import com.v2d.trackme.utilities.Constants
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -28,13 +29,21 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
 
         if (token != null) {
-            FCMService.instance.saveMyToken(this, token)
+            MyPreferences.instance.saveMyToken(token)
+
+            //Save to firebase locationRef
+            val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
+            database.child(MyPreferences.instance.getMyDeviceName()!!).child(Constants.DB_TOKEN).setValue(token)
         }
     }
 
     @SuppressLint("MissingPermission")
     override fun onMessageReceived(remoteMessage: RemoteMessage?) {
         Log.d(Constants.TAG, "From: " + remoteMessage!!.from)
+
+        //The toggle is OFF
+        if(!MyPreferences.instance.getCanAccessMyLocation())
+            return
 
         // Check if message contains a data payload.
         if (remoteMessage.data.size > 0) {
@@ -64,8 +73,7 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
                     val location = locationResult.locations[0]
                     if (location != null) {
 
-                        val prefs = getSharedPreferences(Constants.PREFS_FILENAME, 0)
-                        val myDeviceName = prefs!!.getString(Constants.MY_DEVICE_NAME, null) ?: return
+                        val myDeviceName = MyPreferences.instance.getMyDeviceName() ?: return
 
                         val address = getAddress(location)
 

@@ -29,5 +29,6 @@ class Constants {
         val DB_TOKEN = "token"
         val FROM_DEVICE_NAME = "fromDeviceName"
         val DB_DATE = "date"
+        val CAN_ACCESS_MYLOCATION = "accessState"
     }
 }

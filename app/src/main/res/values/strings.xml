@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Simple Device Tracker</string>
+    <string name="app_name">FlashTrack</string>
     <string name="title_activity_maps">Map</string>
     <string name="name_here">Name here</string>
     <string name="edit">Edit</string>

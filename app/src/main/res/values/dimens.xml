@@ -24,5 +24,6 @@
 
     <dimen name="logo_size">50dp</dimen>
     <dimen name="two_line_height">55dp</dimen>
+    <dimen name="toggle_width">40dp</dimen>
 
 </resources>

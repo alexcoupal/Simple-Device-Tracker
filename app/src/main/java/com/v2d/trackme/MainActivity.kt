@@ -30,6 +30,7 @@ import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.database.*
 import com.google.firebase.iid.FirebaseInstanceId
 import com.v2d.trackme.adapters.MyHistoryAdapter
+import com.v2d.trackme.data.MyPreferences
 import com.v2d.trackme.databinding.ActivityMainBinding
 import com.v2d.trackme.dialogs.DeviceNameDialogFragment
 import com.v2d.trackme.dialogs.ConfirmDialogFragment
@@ -94,7 +95,7 @@ class MainActivity : AppCompatActivity() {
 
                 // Get new Instance ID token
                 fcmToken = task.result?.token
-                FCMService.instance.saveMyToken(this, fcmToken!!)
+                MyPreferences.instance.saveMyToken(fcmToken!!)
                 subscribeUi()
             })
     }
@@ -106,13 +107,14 @@ class MainActivity : AppCompatActivity() {
         database.child(name).child(Constants.DB_TOKEN).setValue(fcmToken)
 
         //Save to local pref.
-        val prefs = getSharedPreferences(Constants.PREFS_FILENAME, 0)
-        val editor = prefs!!.edit()
-        editor.putString(Constants.MY_DEVICE_NAME, name)
-        editor.apply()
+        MyPreferences.instance.setMyDeviceName(name)
     }
 
     private fun subscribeUi() {
+        //Toggle
+        viewModel.toggleState.observe(this, Observer { onOff ->
+            binding.toggleButton.isChecked = onOff
+        })
         //History
         viewModel.allHistory.observe(this, Observer { myhistoryList ->
             if (myhistoryList != null)
@@ -121,7 +123,7 @@ class MainActivity : AppCompatActivity() {
 
         //Device Name
         val nameObserver = Observer<String> { newName ->
-            binding.deviceId.setText(newName)
+            binding.deviceName.setText(newName)
         }
         viewModel.deviceName.observe(this, nameObserver)
 
@@ -159,7 +161,7 @@ class MainActivity : AppCompatActivity() {
                 latitude = intent.getDoubleExtra(Constants.LATITUDE, 0.0)
                 address = intent.getStringExtra(Constants.ADDRESS)
                 val deviceName = intent.getStringExtra(Constants.FROM_DEVICE_NAME)
-                binding.address.text = address
+                viewModel.address.value = address
 
                 viewModel.addToHistory(deviceName)
             }
@@ -214,10 +216,10 @@ class MainActivity : AppCompatActivity() {
         if(!isConnected())
             return
 
-        if(_bAllPermissionGranted && !binding.deviceId.text.toString().isEmpty()) {
-            binding.deviceId.hideKeyboard()
+        if(_bAllPermissionGranted && !binding.deviceName.text.toString().isEmpty()) {
+            binding.deviceName.hideKeyboard()
             setBusyDialog(true)
-            findTokenByDeviceName(binding.deviceId.text.toString())
+            findTokenByDeviceName(binding.deviceName.text.toString())
         }
         else if(!_bAllPermissionGranted)
             setupPermissions()
@@ -291,10 +293,13 @@ class MainActivity : AppCompatActivity() {
     private fun sendRequestToTrackedDevice(token: String) {
         val dataJson = JSONObject()
         dataJson.put(Constants.TYPE, Constants.TRACKME)
-        dataJson.put(Constants.FROMTOKEN, FCMService.instance.getMyToken(this))
+        dataJson.put(Constants.FROMTOKEN, MyPreferences.instance.getMyToken())
         FCMService.instance.send(token, dataJson)
     }
 
+    fun toggle_onClick(view: View) {
+        viewModel.setCanAccessMyLocation(binding.toggleButton.isChecked)
+    }
     fun copy_onClick(view: View) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("deviceId", android_id)

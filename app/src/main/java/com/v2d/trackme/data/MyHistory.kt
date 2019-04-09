@@ -13,5 +13,5 @@ data class MyHistory (
     @PrimaryKey(autoGenerate = true)
     val id: Int? = null,
     val name: String,
-    val createdDate: Date?
+    var createdDate: Date?
 )

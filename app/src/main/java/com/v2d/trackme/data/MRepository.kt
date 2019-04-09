@@ -1,6 +1,8 @@
 package com.v2d.trackme.data
 
+import android.content.SharedPreferences
 import android.util.Log
+import androidx.lifecycle.MutableLiveData
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -13,7 +15,7 @@ import java.util.*
 /**
  * Created by acoupal on 3/11/2019.
  */
-class MRepository private constructor( private val myHistoryDao: MyHistoryDao ) {
+class MRepository private constructor( private val myHistoryDao: MyHistoryDao) {
     lateinit var firebaseCallback: FirebaseDatabaseRepositoryCallback
 
     companion object {
@@ -27,16 +29,24 @@ class MRepository private constructor( private val myHistoryDao: MyHistoryDao ) 
                 }
     }
 
+    fun getAccessState(): MutableLiveData<Boolean>{
+        return MutableLiveData<Boolean>(MyPreferences.instance.getCanAccessMyLocation())
+    }
+
     fun getAll() = myHistoryDao.getAll()
 
     suspend fun insert(name: String){
         withContext(IO) {
             if(myHistoryDao.getByName(name) == null)
                 myHistoryDao.insert(MyHistory(null, name, Date()))
+            else{
+                //Update the date
+                var myHistory = myHistoryDao.getByName(name)
+                myHistory.createdDate = Date()
+                myHistoryDao.update(myHistory)
+            }
         }
     }
-
-
 
     fun addListener(android_id: String?, firebaseCallback : FirebaseDatabaseRepositoryCallback) {
         this.firebaseCallback = firebaseCallback

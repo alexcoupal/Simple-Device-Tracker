@@ -39,16 +39,5 @@ class FCMService {
         }
 
     }
-    fun saveMyToken(context: Context, topic: String)
-    {
-        val prefs = context.getSharedPreferences(Constants.PREFS_FILENAME, 0)
-        val editor = prefs!!.edit()
-        editor.putString(Constants.MY_TOKEN, topic)
-        editor.apply()
-    }
-    fun getMyToken(context: Context) : String
-    {
-        val prefs = context.getSharedPreferences(Constants.PREFS_FILENAME, 0)
-        return prefs!!.getString(Constants.MY_TOKEN, null)
-    }
+
 }

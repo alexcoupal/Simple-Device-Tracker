@@ -5,9 +5,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.v2d.trackme.utilities.Constants
 import com.v2d.trackme.data.MyHistory
 import com.v2d.trackme.data.MRepository
+import com.v2d.trackme.data.MyPreferences
 import kotlinx.coroutines.launch
 
 /**
@@ -20,10 +20,10 @@ class MainViewModel(private val repository: MRepository) : ViewModel() {
     }
 
     var myDeviceName : MutableLiveData<String> = MutableLiveData<String>()
+    var address : MutableLiveData<String> = MutableLiveData<String>()
 
     fun getMyDeviceName(context: Context, android_id: String?) {
-        val prefs = context.getSharedPreferences(Constants.PREFS_FILENAME, 0)
-        val deviceName = prefs!!.getString(Constants.MY_DEVICE_NAME, null)
+        val deviceName = MyPreferences.instance.getMyDeviceName()
         if(deviceName == null) {
             loadMyDeviceName(android_id)
         }
@@ -45,11 +45,17 @@ class MainViewModel(private val repository: MRepository) : ViewModel() {
     }
 
     var allHistory : LiveData<List<MyHistory>> = repository.getAll()
-
     fun addToHistory(name: String) {
         viewModelScope.launch {
             repository.insert(name)
         }
         allHistory = repository.getAll()
+    }
+
+    var toggleState: MutableLiveData<Boolean> = repository.getAccessState()
+    fun setCanAccessMyLocation(value: Boolean)
+    {
+        MyPreferences.instance.setCanAccessMyLocation(value)
+        toggleState.value = value
     }
 }
