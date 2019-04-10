@@ -66,10 +66,12 @@ class MRepository private constructor( private val myHistoryDao: MyHistoryDao) {
                 // Get Post object and use the values to update the UI
                 if(dataSnapshot.hasChildren()) {
                     for (data: DataSnapshot in dataSnapshot.children) {
-                        val deviceUID = data.child(Constants.DB_DEVICE_UID).value as String
-                        if (deviceUID.equals(android_id)) {
-                            firebaseCallback.onSuccess(data.key.toString())
-                            return
+                        if(data.hasChild(Constants.DB_DEVICE_UID)) {
+                            val deviceUID = data.child(Constants.DB_DEVICE_UID).value as String
+                            if (deviceUID.equals(android_id)) {
+                                firebaseCallback.onSuccess(data.key.toString())
+                                return
+                            }
                         }
                     }
                 }

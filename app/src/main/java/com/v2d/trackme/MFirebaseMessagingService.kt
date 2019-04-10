@@ -25,12 +25,15 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String?) {
         super.onNewToken(token)
 
+        Log.d(Constants.TAG, "onNewToken = $token")
         if (token != null) {
             MyPreferences.instance.saveMyToken(token)
 
             //Save to firebase locationRef
-            val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
-            database.child(MyPreferences.instance.getMyDeviceName()!!).child(Constants.DB_TOKEN).setValue(token)
+            if(MyPreferences.instance.getMyDeviceName() != null) { //If fresh start
+                val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
+                database.child(MyPreferences.instance.getMyDeviceName()!!).child(Constants.DB_TOKEN).setValue(token)
+            }
         }
     }
 

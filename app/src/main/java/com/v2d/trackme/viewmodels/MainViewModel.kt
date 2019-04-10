@@ -22,16 +22,7 @@ class MainViewModel(private val repository: MRepository) : ViewModel() {
     var myDeviceName : MutableLiveData<String> = MutableLiveData<String>()
     var address : MutableLiveData<String> = MutableLiveData<String>()
 
-    fun getMyDeviceName(context: Context, android_id: String?) {
-        val deviceName = MyPreferences.instance.getMyDeviceName()
-        if(deviceName == null) {
-            loadMyDeviceName(android_id)
-        }
-        else
-            myDeviceName.value = deviceName
-    }
-
-    private fun loadMyDeviceName(android_id: String?) {
+    fun getMyDeviceName(android_id: String?) {
         repository.addListener(android_id, object: MRepository.FirebaseDatabaseRepositoryCallback {
             override fun onSuccess(result: String?) {
                 myDeviceName.value = result

@@ -19,6 +19,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.v2d.trackme.MainActivity
 import com.v2d.trackme.utilities.Constants
 import com.v2d.trackme.viewmodels.MainViewModel
 
@@ -79,7 +80,8 @@ class DeviceNameDialogFragment : DialogFragment() {
 
         btnAccept.setOnClickListener {
             if(!currentName.equals(textViewContent.text.toString()))
-                checkIsAvailable(textViewContent.text.toString())
+                if((activity as MainActivity).isConnected(MainActivity.Action.NONE))
+                    checkIsAvailable(textViewContent.text.toString())
             else {
                 textViewContent.hideKeyboard()
                 dismiss()

@@ -35,6 +35,7 @@ import com.v2d.trackme.databinding.ActivityMainBinding
 import com.v2d.trackme.dialogs.AlertDialogFragment
 import com.v2d.trackme.dialogs.DeviceNameDialogFragment
 import com.v2d.trackme.dialogs.ConfirmDialogFragment
+import com.v2d.trackme.dialogs.ProgressDialogFragment
 import com.v2d.trackme.utilities.Constants
 import kotlinx.android.synthetic.main.alert_custom.view.*
 import kotlinx.android.synthetic.main.progress.view.*
@@ -45,22 +46,14 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_PERMISSIONS = 1
     enum class Action {
         NONE,
-        GET_TOKEN,
-        TRACKING,
-        NEW_DEVICE_NAME,
-        SHOW_MAP
+        GET_TOKEN
     }
 
-    private var mReceiver: BroadcastReceiver? = null
     private var android_id: String? = null
     private var fcmToken: String? = null
 
     private var _bAllPermissionGranted: Boolean = false
-    private var longitude: Double? = null
-    private var latitude: Double? = null
-    private var address: String? = null
-    private var loadingDialog: AlertDialog? = null
-    private var busyDialog: AlertDialog? = null
+    private var progressDialog: ProgressDialogFragment? = null
 
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
@@ -83,7 +76,7 @@ class MainActivity : AppCompatActivity() {
         //Permissions
         setupPermissions()
 
-        setBusyDialog(true)
+        showProgressDialog(false)
         //View model binding
         val factory = InjectorUtils.provideMyHistoryViewModelFactory(this)
         viewModel = ViewModelProviders.of(this, factory).get(MainViewModel::class.java)
@@ -144,18 +137,22 @@ class MainActivity : AppCompatActivity() {
 
         //My Device Name
         val myDeviceNameObserver = Observer<String> { newName ->
-            setBusyDialog(false)
+            dismissProgressDialog()
             if (newName == null) { //First launch
-                binding.myDeviceName.setText(android_id)
+                binding.myDeviceName.text = android_id
                 saveDeviceName(android_id!!)
             } else {
-                binding.myDeviceName.setText(newName)
+                binding.myDeviceName.text = newName
                 saveDeviceName(newName)
             }
         }
         viewModel.myDeviceName.observe(this, myDeviceNameObserver)
 
-        viewModel.getMyDeviceName(this, android_id)
+        viewModel.getMyDeviceName(android_id)
+
+        viewModel.address.observe(this, Observer { address ->
+            binding.address.text = address
+        })
 
     }
     private fun myHistoryItemClicked(myHistoryItem : MyHistory) {
@@ -185,7 +182,7 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             REQUEST_PERMISSIONS -> {
                 // If request is cancelled, the result arrays are empty.
-                if (grantResults.size == 0 || contains(grantResults, PackageManager.PERMISSION_DENIED)) {
+                if (grantResults.isEmpty() || contains(grantResults, PackageManager.PERMISSION_DENIED)) {
                     _bAllPermissionGranted = false
                 }
                 return
@@ -203,12 +200,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun track_onClick(view: View) {
-        if(!isConnected(Action.TRACKING))
+        if(!isConnected(Action.NONE))
             return
 
         if(_bAllPermissionGranted && !binding.deviceName.text.toString().isEmpty()) {
             binding.deviceName.hideKeyboard()
-            setLoadingDialog(true)
+            showProgressDialog(true)
             findTokenByDeviceName(binding.deviceName.text.toString())
         }
         else if(!_bAllPermissionGranted)
@@ -223,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                     val isOnline: Boolean = dataSnapshot.child(Constants.DB_IS_ONLINE).value as Boolean
                     if(!isOnline)
                     {
-                        setLoadingDialog(false)
+                        dismissProgressDialog()
                         showAlert(getString(R.string.device_name_is_offline), Action.NONE)
                     }
 
@@ -233,13 +230,13 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
 
-                setLoadingDialog(false)
+                dismissProgressDialog()
                 showAlert(getString(R.string.device_name_not_exist), Action.NONE)
             }
             override fun onCancelled(databaseError: DatabaseError) {
                 // Getting Post failed, log a message
                 Log.w(Constants.TAG, "findTokenByDeviceName:onCancelled", databaseError.toException())
-                setLoadingDialog(false)
+                dismissProgressDialog()
             }
         }
 
@@ -260,27 +257,25 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if (data.exists()) {
-                    longitude = data.child(Constants.DB_LONGITUDE).value as Double
-                    latitude = data.child(Constants.DB_LATITUDE).value as Double
-                    address = data.child(Constants.DB_ADDRESS).value as String
+                    val address = data.child(Constants.DB_ADDRESS).value as String
 
                     val date = data.child(Constants.DB_DATE).value as String
-                    Log.d(Constants.TAG, "date = " + date)
+                    Log.d(Constants.TAG, "date = $date")
 
-                    binding.address.text = address
+                    viewModel.address.value = address
 
                     viewModel.addToHistory(deviceName)
 
                     //Stop listening
                     locationRef?.removeEventListener(this)
 
-                    setLoadingDialog(false)
+                    dismissProgressDialog()
                 }
             }
 
             override fun onCancelled(databaseError: DatabaseError) {
                 Log.w(Constants.TAG, "listenToDeviceLocationChange:onCancelled", databaseError.toException())
-                setLoadingDialog(false)
+                dismissProgressDialog()
             }
 
         }
@@ -295,10 +290,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun toggle_onClick(view: View) {
-        if(MyPreferences.instance.getMyToken() == null)
-            getFCMToken()
-        else
-            viewModel.setIsOnline(binding.toggleButton.isChecked)
+        if(!isConnected(Action.NONE)) {
+            binding.toggleButton.isChecked = !binding.toggleButton.isChecked
+            return
+        }
+
+        viewModel.setIsOnline(binding.toggleButton.isChecked)
     }
     fun copy_onClick(view: View) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -312,7 +309,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if(!isConnected(Action.NEW_DEVICE_NAME))
+        if(!isConnected(Action.NONE))
             return
 
         val ft = supportFragmentManager.beginTransaction()
@@ -325,10 +322,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if(!isConnected(Action.SHOW_MAP))
-            return
-
-        if(latitude == null)
+        if(!isConnected(Action.NONE))
             return
 /*
         val intent = Intent(this, MapsActivity::class.java)
@@ -338,15 +332,21 @@ class MainActivity : AppCompatActivity() {
 */
 
         // Create a Uri from an intent string. Use the result to create an Intent.
-        val gmmIntentUri = Uri.parse("geo:" + latitude + "," + longitude + "?q=" + latitude + "," + longitude)
-
+       // val gmmIntentUri = Uri.parse("geo:" + latitude + "," + longitude + "?q=" + latitude + "," + longitude)
+        val gmmIntentUri = Uri.parse("geo:" + 0 + "," + 0 + "?q=" + binding.address.text.toString().replace(" ", "+"))
         // Create an Intent from gmmIntentUri. Set the action to ACTION_VIEW
         val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
         // Make the Intent explicit by setting the Google Maps package
         mapIntent.`package` = "com.google.android.apps.maps"
 
         // Attempt to start an activity that can handle the Intent
-        startActivity(mapIntent)
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(mapIntent)
+        }
+        else
+        {
+            showAlert(getString(R.string.install_map_app), Action.NONE)
+        }
 
     }
     fun View.hideKeyboard() {
@@ -354,39 +354,32 @@ class MainActivity : AppCompatActivity() {
         imm.hideSoftInputFromWindow(windowToken, 0)
     }
 
-    private fun setBusyDialog(show: Boolean) {
-        if(busyDialog == null) {
-            val builder = AlertDialog.Builder(this)
-            val customView = LayoutInflater.from(this).inflate(R.layout.busy_dialog, null)
-            builder.setView(customView)
-            busyDialog = builder.create()
-            builder.setCancelable(false)
-        }
-        if (show && !busyDialog?.isShowing!!) {
-            busyDialog?.show()
-        }
-        else
-            busyDialog?.dismiss()
-    }
-    private fun setLoadingDialog(show: Boolean) {
-        if(loadingDialog == null) {
-            val builder = AlertDialog.Builder(this)
-            val customView = LayoutInflater.from(this).inflate(R.layout.progress, null)
-            builder.setView(customView)
-            loadingDialog = builder.create()
-            builder.setCancelable(false)
-            customView.buttonCancel.setOnClickListener{
-                locationRef?.removeEventListener(locationRefListener!!)
-                loadingDialog?.dismiss()
+    private fun showProgressDialog(cancelable: Boolean = false)
+    {
+        //If its already showing, then dismiss
+        if (progressDialog != null
+            && progressDialog?.dialog != null
+            && progressDialog?.dialog!!.isShowing
+            && !progressDialog?.isRemoving!!)
+            progressDialog?.dismiss()
+
+        val ft = supportFragmentManager.beginTransaction()
+        progressDialog = ProgressDialogFragment.newInstance(cancelable)
+        progressDialog?.setListener(object : ProgressDialogFragment.ProgressDialogFragmentListener {
+            override fun onCancelClick() {
+                if(locationRef != null && locationRefListener != null)
+                    locationRef?.removeEventListener(locationRefListener!!)
+
+                progressDialog?.dismiss()
             }
-        }
-        if (show && !loadingDialog?.isShowing!!) {
-            loadingDialog?.show()
-        }
-        else
-            loadingDialog?.dismiss()
+        })
+        progressDialog?.show(ft, "progressDialog")
     }
-    private fun isConnected(action: Action):Boolean {
+    private fun dismissProgressDialog() {
+        if(progressDialog != null)
+            progressDialog?.dismiss()
+    }
+    fun isConnected(action: Action):Boolean {
         val connectivityManager = this.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
         val isConnected: Boolean = activeNetwork?.isConnected == true
@@ -406,9 +399,6 @@ class MainActivity : AppCompatActivity() {
             override fun onOkClick() {
                 when(action) {
                     Action.GET_TOKEN -> getFCMToken()
-                    Action.TRACKING -> track_onClick(View(applicationContext))
-                    Action.NEW_DEVICE_NAME -> changeDeviceName_onClick(View(applicationContext))
-                    Action.SHOW_MAP -> map_onClick(View(applicationContext))
                 }
             }
 
