@@ -52,10 +52,10 @@ class MainViewModel(private val repository: MRepository) : ViewModel() {
         allHistory = repository.getAll()
     }
 
-    var toggleState: MutableLiveData<Boolean> = repository.getAccessState()
-    fun setCanAccessMyLocation(value: Boolean)
+    var toggleState: MutableLiveData<Boolean> = repository.isOnline()
+    fun setIsOnline(value: Boolean)
     {
-        MyPreferences.instance.setCanAccessMyLocation(value)
+        repository.setIsOnline(value)
         toggleState.value = value
     }
 }

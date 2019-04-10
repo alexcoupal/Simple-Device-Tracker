@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FlashTrack</string>
+    <string name="app_name">TrackMeNow</string>
     <string name="title_activity_maps">Map</string>
     <string name="name_here">Name here</string>
     <string name="edit">Edit</string>
@@ -20,4 +20,6 @@
     <string name="no_connection_message">You need internet access to use this app.</string>
     <string name="device_name_not_exist">This device name does not exist.</string>
     <string name="no_gps_error">Your GPS seems to be disabled, do you want to enable it?</string>
+    <string name="please_wait">Please wait ...</string>
+    <string name="device_name_is_offline">The device you are trying to track is offline.</string>
 </resources>

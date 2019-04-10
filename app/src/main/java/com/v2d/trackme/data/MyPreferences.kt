@@ -8,14 +8,14 @@ class MyPreferences {
     companion object {
         val instance = MyPreferences()
         val myPref: SharedPreferences = MyApplication.context.getSharedPreferences(Constants.PREFS_FILENAME, 0)
-        val editor = myPref.edit()
+        val editor = myPref.edit()!!
     }
-    fun setCanAccessMyLocation(value: Boolean){
-        editor.putBoolean(Constants.CAN_ACCESS_MYLOCATION, value)
+    fun setIsOnline(value: Boolean){
+        editor.putBoolean(Constants.IS_ONLINE, value)
         editor.apply()
     }
-    fun getCanAccessMyLocation(): Boolean{
-        return myPref.getBoolean(Constants.CAN_ACCESS_MYLOCATION, true)
+    fun isOnline(): Boolean{
+        return myPref.getBoolean(Constants.IS_ONLINE, true)
     }
     fun getMyDeviceName(): String? {
         return myPref.getString(Constants.MY_DEVICE_NAME, null)
@@ -29,7 +29,7 @@ class MyPreferences {
         editor.putString(Constants.MY_TOKEN, token)
         editor.apply()
     }
-    fun getMyToken() : String
+    fun getMyToken() : String?
     {
         return myPref.getString(Constants.MY_TOKEN, null)
     }

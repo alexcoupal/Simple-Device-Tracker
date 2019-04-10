@@ -32,6 +32,7 @@ import com.google.firebase.iid.FirebaseInstanceId
 import com.v2d.trackme.adapters.MyHistoryAdapter
 import com.v2d.trackme.data.MyPreferences
 import com.v2d.trackme.databinding.ActivityMainBinding
+import com.v2d.trackme.dialogs.AlertDialogFragment
 import com.v2d.trackme.dialogs.DeviceNameDialogFragment
 import com.v2d.trackme.dialogs.ConfirmDialogFragment
 import com.v2d.trackme.utilities.Constants
@@ -42,6 +43,13 @@ import kotlinx.android.synthetic.main.progress.view.*
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERMISSIONS = 1
+    enum class Action {
+        NONE,
+        GET_TOKEN,
+        TRACKING,
+        NEW_DEVICE_NAME,
+        SHOW_MAP
+    }
 
     private var mReceiver: BroadcastReceiver? = null
     private var android_id: String? = null
@@ -51,7 +59,8 @@ class MainActivity : AppCompatActivity() {
     private var longitude: Double? = null
     private var latitude: Double? = null
     private var address: String? = null
-    private var dialog: AlertDialog? = null
+    private var loadingDialog: AlertDialog? = null
+    private var busyDialog: AlertDialog? = null
 
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
@@ -68,28 +77,33 @@ class MainActivity : AppCompatActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
 
         android_id = Secure.getString(contentResolver,  Secure.ANDROID_ID)
+        if(MyPreferences.instance.getMyDeviceName() == null)
+            MyPreferences.instance.setMyDeviceName(android_id!!)
 
         //Permissions
         setupPermissions()
 
+        setBusyDialog(true)
         //View model binding
         val factory = InjectorUtils.provideMyHistoryViewModelFactory(this)
         viewModel = ViewModelProviders.of(this, factory).get(MainViewModel::class.java)
         binding.viewModel = viewModel
 
-        binding.historyList.setLayoutManager(LinearLayoutManager(this));
-        adapter = MyHistoryAdapter({myHistoryItem : MyHistory -> myHistoryItemClicked(myHistoryItem)})
+        binding.historyList.layoutManager = LinearLayoutManager(this)
+        adapter = MyHistoryAdapter { myHistoryItem : MyHistory -> myHistoryItemClicked(myHistoryItem)}
         binding.historyList.adapter = adapter
 
         getFCMToken()
     }
-
     private fun getFCMToken() {
+        if(!isConnected(Action.GET_TOKEN))
+            return
+
         FirebaseInstanceId.getInstance().instanceId
             .addOnCompleteListener(OnCompleteListener { task ->
                 if (!task.isSuccessful) {
                     Log.w(Constants.TAG, "getInstanceId failed", task.exception)
-                    Toast.makeText(baseContext, "Failed to get token.", Toast.LENGTH_LONG).show()
+                    showAlert(getString(R.string.no_connection_message), Action.GET_TOKEN)
                     return@OnCompleteListener
                 }
 
@@ -105,6 +119,7 @@ class MainActivity : AppCompatActivity() {
         val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
         database.child(name).child(Constants.DB_DEVICE_UID).setValue(android_id!!)
         database.child(name).child(Constants.DB_TOKEN).setValue(fcmToken)
+        database.child(name).child(Constants.DB_IS_ONLINE).setValue(binding.toggleButton.isChecked)
 
         //Save to local pref.
         MyPreferences.instance.setMyDeviceName(name)
@@ -129,6 +144,7 @@ class MainActivity : AppCompatActivity() {
 
         //My Device Name
         val myDeviceNameObserver = Observer<String> { newName ->
+            setBusyDialog(false)
             if (newName == null) { //First launch
                 binding.myDeviceName.setText(android_id)
                 saveDeviceName(android_id!!)
@@ -149,33 +165,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
 
         isGPSEnable()
-
-        val intentFilter = IntentFilter(
-                "android.intent.action.MAIN")
-
-        mReceiver = object : BroadcastReceiver() {
-
-            override fun onReceive(context: Context, intent: Intent) {
-                setBusyDialog(false)
-                longitude = intent.getDoubleExtra(Constants.LONGITUDE, 0.0)
-                latitude = intent.getDoubleExtra(Constants.LATITUDE, 0.0)
-                address = intent.getStringExtra(Constants.ADDRESS)
-                val deviceName = intent.getStringExtra(Constants.FROM_DEVICE_NAME)
-                viewModel.address.value = address
-
-                viewModel.addToHistory(deviceName)
-            }
-        }
-        //registering our receiver
-        this.registerReceiver(mReceiver, intentFilter)
     }
-
-    override fun onPause() {
-        super.onPause()
-        //unregister our receiver
-        this.unregisterReceiver(this.mReceiver)
-    }
-
     private fun setupPermissions() {
         _bAllPermissionGranted = true
 
@@ -213,12 +203,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun track_onClick(view: View) {
-        if(!isConnected())
+        if(!isConnected(Action.TRACKING))
             return
 
         if(_bAllPermissionGranted && !binding.deviceName.text.toString().isEmpty()) {
             binding.deviceName.hideKeyboard()
-            setBusyDialog(true)
+            setLoadingDialog(true)
             findTokenByDeviceName(binding.deviceName.text.toString())
         }
         else if(!_bAllPermissionGranted)
@@ -230,19 +220,26 @@ class MainActivity : AppCompatActivity() {
         val postListener = object : ValueEventListener {
             override fun onDataChange(dataSnapshot: DataSnapshot) {
                 if (dataSnapshot.exists()) {
+                    val isOnline: Boolean = dataSnapshot.child(Constants.DB_IS_ONLINE).value as Boolean
+                    if(!isOnline)
+                    {
+                        setLoadingDialog(false)
+                        showAlert(getString(R.string.device_name_is_offline), Action.NONE)
+                    }
+
                     val token = dataSnapshot.child(Constants.DB_TOKEN).value.toString()
                     listenToDeviceLocationChange(deviceName)
                     sendRequestToTrackedDevice(token)
                     return
                 }
 
-                setBusyDialog(false)
-                showAlert(getString(R.string.device_name_not_exist))
+                setLoadingDialog(false)
+                showAlert(getString(R.string.device_name_not_exist), Action.NONE)
             }
             override fun onCancelled(databaseError: DatabaseError) {
                 // Getting Post failed, log a message
                 Log.w(Constants.TAG, "findTokenByDeviceName:onCancelled", databaseError.toException())
-                setBusyDialog(false)
+                setLoadingDialog(false)
             }
         }
 
@@ -277,13 +274,13 @@ class MainActivity : AppCompatActivity() {
                     //Stop listening
                     locationRef?.removeEventListener(this)
 
-                    setBusyDialog(false)
+                    setLoadingDialog(false)
                 }
             }
 
             override fun onCancelled(databaseError: DatabaseError) {
                 Log.w(Constants.TAG, "listenToDeviceLocationChange:onCancelled", databaseError.toException())
-                setBusyDialog(false)
+                setLoadingDialog(false)
             }
 
         }
@@ -298,7 +295,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun toggle_onClick(view: View) {
-        viewModel.setCanAccessMyLocation(binding.toggleButton.isChecked)
+        if(MyPreferences.instance.getMyToken() == null)
+            getFCMToken()
+        else
+            viewModel.setIsOnline(binding.toggleButton.isChecked)
     }
     fun copy_onClick(view: View) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -312,12 +312,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if(!isConnected())
+        if(!isConnected(Action.NEW_DEVICE_NAME))
             return
 
         val ft = supportFragmentManager.beginTransaction()
         val newFragment = DeviceNameDialogFragment.newInstance(binding.myDeviceName.text.toString(), android_id!!)
-        newFragment.show(ft, "dialog")
+        newFragment.show(ft, "loadingDialog")
     }
     fun map_onClick(view: View) {
         if(!_bAllPermissionGranted) {
@@ -325,7 +325,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if(!isConnected())
+        if(!isConnected(Action.SHOW_MAP))
             return
 
         if(latitude == null)
@@ -353,46 +353,68 @@ class MainActivity : AppCompatActivity() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(windowToken, 0)
     }
+
     private fun setBusyDialog(show: Boolean) {
-        if(dialog == null) {
+        if(busyDialog == null) {
+            val builder = AlertDialog.Builder(this)
+            val customView = LayoutInflater.from(this).inflate(R.layout.busy_dialog, null)
+            builder.setView(customView)
+            busyDialog = builder.create()
+            builder.setCancelable(false)
+        }
+        if (show && !busyDialog?.isShowing!!) {
+            busyDialog?.show()
+        }
+        else
+            busyDialog?.dismiss()
+    }
+    private fun setLoadingDialog(show: Boolean) {
+        if(loadingDialog == null) {
             val builder = AlertDialog.Builder(this)
             val customView = LayoutInflater.from(this).inflate(R.layout.progress, null)
             builder.setView(customView)
-            dialog = builder.create()
+            loadingDialog = builder.create()
             builder.setCancelable(false)
             customView.buttonCancel.setOnClickListener{
                 locationRef?.removeEventListener(locationRefListener!!)
-                dialog?.dismiss()
+                loadingDialog?.dismiss()
             }
         }
-        if (show && !dialog?.isShowing!!) {
-            dialog?.show()
+        if (show && !loadingDialog?.isShowing!!) {
+            loadingDialog?.show()
         }
         else
-            dialog?.dismiss()
+            loadingDialog?.dismiss()
     }
-    private fun isConnected():Boolean {
+    private fun isConnected(action: Action):Boolean {
         val connectivityManager = this.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork: NetworkInfo? = connectivityManager.activeNetworkInfo
         val isConnected: Boolean = activeNetwork?.isConnected == true
 
         if(!isConnected)
         {
-            showAlert(getString(R.string.no_connection_message))
+            showAlert(getString(R.string.no_connection_message), action)
         }
         return isConnected
     }
 
-    private fun showAlert(message: String) {
-        val builder = AlertDialog.Builder(this)
-        val customView = LayoutInflater.from(this).inflate(R.layout.alert_custom, null)
-        builder.setView(customView)
-        var dialog = builder.create()
-        customView.message.text = message
-        customView.buttonOk.setOnClickListener{
-            dialog.dismiss()
-        }
-        dialog.show()
+    private fun showAlert(message: String, action: Action) {
+        val ft = supportFragmentManager.beginTransaction()
+        val fragment = AlertDialogFragment.newInstance(message)
+        fragment.isCancelable = false
+        fragment.setListener(object: AlertDialogFragment.AlertDialogFragmentListener {
+            override fun onOkClick() {
+                when(action) {
+                    Action.GET_TOKEN -> getFCMToken()
+                    Action.TRACKING -> track_onClick(View(applicationContext))
+                    Action.NEW_DEVICE_NAME -> changeDeviceName_onClick(View(applicationContext))
+                    Action.SHOW_MAP -> map_onClick(View(applicationContext))
+                }
+            }
+
+        })
+        fragment.show(ft, "alertDialog")
+
     }
     private fun isGPSEnable(): Boolean{
         val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -416,6 +438,6 @@ class MainActivity : AppCompatActivity() {
             }
 
         })
-        fragment.show(ft, "dialog")
+        fragment.show(ft, "loadingDialog")
     }
 }

@@ -4,8 +4,6 @@ import android.annotation.SuppressLint
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import org.json.JSONObject
-import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
@@ -20,7 +18,6 @@ import com.google.firebase.database.FirebaseDatabase
 import com.v2d.trackme.data.MyPreferences
 import com.v2d.trackme.utilities.Constants
 import java.text.SimpleDateFormat
-import java.time.LocalDateTime
 
 
 class MFirebaseMessagingService : FirebaseMessagingService() {
@@ -42,7 +39,7 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(Constants.TAG, "From: " + remoteMessage!!.from)
 
         //The toggle is OFF
-        if(!MyPreferences.instance.getCanAccessMyLocation())
+        if(!MyPreferences.instance.isOnline())
             return
 
         // Check if message contains a data payload.

@@ -27,8 +27,9 @@ class Constants {
         val DB_LATITUDE = "latitude"
         val DB_ADDRESS = "address"
         val DB_TOKEN = "token"
+        val DB_IS_ONLINE = "isOnline"
         val FROM_DEVICE_NAME = "fromDeviceName"
         val DB_DATE = "date"
-        val CAN_ACCESS_MYLOCATION = "accessState"
+        val IS_ONLINE = "accessState"
     }
 }

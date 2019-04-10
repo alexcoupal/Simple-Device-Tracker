@@ -1,6 +1,5 @@
 package com.v2d.trackme.data
 
-import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.google.firebase.database.DataSnapshot
@@ -29,9 +28,17 @@ class MRepository private constructor( private val myHistoryDao: MyHistoryDao) {
                 }
     }
 
-    fun getAccessState(): MutableLiveData<Boolean>{
-        return MutableLiveData<Boolean>(MyPreferences.instance.getCanAccessMyLocation())
+    fun isOnline(): MutableLiveData<Boolean>{
+        return MutableLiveData(MyPreferences.instance.isOnline())
     }
+    fun setIsOnline(value: Boolean) {
+        //Save in shared pref
+        MyPreferences.instance.setIsOnline(value)
+
+        //Save in firebase
+        val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
+        database.child(MyPreferences.instance.getMyDeviceName()!!).child(Constants.DB_IS_ONLINE).setValue(value)
+   }
 
     fun getAll() = myHistoryDao.getAll()
 
