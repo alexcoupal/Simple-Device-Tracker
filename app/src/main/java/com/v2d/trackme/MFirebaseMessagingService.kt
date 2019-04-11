@@ -8,6 +8,7 @@ import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.os.Looper
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
@@ -27,6 +28,7 @@ class MFirebaseMessagingService : FirebaseMessagingService() {
 
         Log.d(Constants.TAG, "onNewToken = $token")
         if (token != null) {
+            Crashlytics.setString("newToken", token)
             MyPreferences.instance.saveMyToken(token)
 
             //Save to firebase locationRef

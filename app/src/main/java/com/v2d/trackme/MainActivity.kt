@@ -26,7 +26,9 @@ import com.v2d.trackme.utilities.InjectorUtils
 import com.v2d.trackme.viewmodels.MainViewModel
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.tasks.OnCompleteListener
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.database.*
 import com.google.firebase.iid.FirebaseInstanceId
 import com.v2d.trackme.adapters.MyHistoryAdapter
@@ -41,6 +43,7 @@ import kotlinx.android.synthetic.main.alert_custom.view.*
 import kotlinx.android.synthetic.main.progress.view.*
 
 
+@Suppress("FunctionName", "PrivatePropertyName", "SpellCheckingInspection")
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERMISSIONS = 1
@@ -55,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private var _bAllPermissionGranted: Boolean = false
     private var progressDialog: ProgressDialogFragment? = null
 
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
     private lateinit var viewModel: MainViewModel
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: MyHistoryAdapter
@@ -64,14 +68,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Obtain the FirebaseAnalytics instance.
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this // must call this
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
 
         android_id = Secure.getString(contentResolver,  Secure.ANDROID_ID)
-        if(MyPreferences.instance.getMyDeviceName() == null)
-            MyPreferences.instance.setMyDeviceName(android_id!!)
+        Crashlytics.setString("DeviceUid", android_id)
+        firebaseAnalytics.setUserId(android_id)
 
         //Permissions
         setupPermissions()
@@ -103,12 +110,16 @@ class MainActivity : AppCompatActivity() {
                 // Get new Instance ID token
                 fcmToken = task.result?.token
                 MyPreferences.instance.saveMyToken(fcmToken!!)
+                firebaseAnalytics.setUserProperty("fcmToken", fcmToken)
+                Crashlytics.setString("fcmToken", fcmToken)
                 subscribeUi()
             })
     }
 
     private fun saveDeviceName(name : String){
         //Save to firebase locationRef
+        firebaseAnalytics.setUserProperty("deviceName", name)
+        Crashlytics.setString("deviceName", name)
         val database = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_REF)
         database.child(name).child(Constants.DB_DEVICE_UID).setValue(android_id!!)
         database.child(name).child(Constants.DB_TOKEN).setValue(fcmToken)
@@ -199,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    fun track_onClick(view: View) {
+    fun track_onClick(@Suppress("UNUSED_PARAMETER")view: View) {
         if(!isConnected(Action.NONE))
             return
 
@@ -297,13 +308,13 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.setIsOnline(binding.toggleButton.isChecked)
     }
-    fun copy_onClick(view: View) {
+    fun copy_onClick(@Suppress("UNUSED_PARAMETER")view: View) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("deviceId", android_id)
         clipboard.primaryClip = clip
         Toast.makeText(this, "Copy to clipboard", Toast.LENGTH_SHORT).show()
     }
-    fun changeDeviceName_onClick(view: View) {
+    fun changeDeviceName_onClick(@Suppress("UNUSED_PARAMETER")view: View) {
         if(!_bAllPermissionGranted) {
             setupPermissions()
             return
