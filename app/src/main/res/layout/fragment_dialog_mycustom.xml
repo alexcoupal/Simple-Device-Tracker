@@ -21,7 +21,7 @@
 
         <EditText android:id="@+id/editTextContent"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="@dimen/edittext_height"
             android:paddingLeft="@dimen/main_padding"
             android:paddingRight="@dimen/main_padding"
             android:background="@drawable/edittext_round"

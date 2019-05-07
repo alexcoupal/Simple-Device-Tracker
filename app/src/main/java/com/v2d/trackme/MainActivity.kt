@@ -39,11 +39,8 @@ import com.v2d.trackme.dialogs.DeviceNameDialogFragment
 import com.v2d.trackme.dialogs.ConfirmDialogFragment
 import com.v2d.trackme.dialogs.ProgressDialogFragment
 import com.v2d.trackme.utilities.Constants
-import kotlinx.android.synthetic.main.alert_custom.view.*
-import kotlinx.android.synthetic.main.progress.view.*
 
 
-@Suppress("FunctionName", "PrivatePropertyName", "SpellCheckingInspection")
 class MainActivity : AppCompatActivity() {
 
     private val REQUEST_PERMISSIONS = 1

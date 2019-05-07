@@ -24,6 +24,11 @@ class FCMService {
                 val json = JSONObject()
                 json.put("data", dataJson)
                 json.put("to", token)
+
+                val priorityJson = JSONObject()
+                priorityJson.put("priority", "high")
+                json.put("android", priorityJson)
+
                 val body = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), json.toString())
                 val request = Request.Builder()
                         .header("Authorization", "key=" + BuildConfig.FCMKey)
